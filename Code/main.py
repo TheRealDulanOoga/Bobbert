@@ -1,5 +1,3 @@
-import discord
-from discord.ext import commands
 from discord_components import ComponentsBot
 
 from help_cog import help_cog

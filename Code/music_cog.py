@@ -1,4 +1,5 @@
 import discord
+import asyncio
 from asyncio import run_coroutine_threadsafe
 from discord_components import Select, SelectOption
 from discord.ext import commands
@@ -7,11 +8,14 @@ import urllib.parse
 import urllib.request
 import re
 
-# TODO Make the bot auto leave the VC when no-one is in it and when it turns off
+# TODO Make search command faster (download after selection)
+# TODO Make a cancel button for the search option
 # TODO Make refresh command that restarts the bot
 # TODO Make queue command list time left in audio
-# Made a search command
 # TODO Add playlist mechanics
+# Made a search command
+# Made bot leave vc after 3 minutes of inactivity
+# Made the bot auto leave the VC when no-one is in it
 
 # TODO Load onto raspi
 
@@ -30,6 +34,37 @@ class music_cog(commands.Cog):
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
         self.vc = None
+
+    # Auto Leave
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        # if the trigger was the bot and the action was joining a channel
+        if member.id == self.bot.user.id and before.channel == None and after.channel != None:
+            cooldownMinutes = 3
+            time = 0
+            while True:
+                await asyncio.sleep(1)
+                time += 1
+                if self.is_playing and not self.is_paused:
+                    time = 0
+                if time == cooldownMinutes * 60:
+                    self.is_playing = False
+                    self.is_paused = False
+                    self.musicQueue = []
+                    self.queueIndex = 0
+                    await self.vc.disconnect()
+                if not self.vc.is_connected():
+                    break
+        # if the trigger is a user (not the bot) and the action was leaving a channel
+        if member.id != self.bot.user.id and before.channel != None and after.channel != before.channel:
+            remainingChannelMembers = before.channel.members
+            if len(remainingChannelMembers) == 1 and remainingChannelMembers[0].id == self.bot.user.id and self.vc.is_connected():
+                self.is_playing = False
+                self.is_paused = False
+                self.musicQueue = []
+                self.queueIndex = 0
+                await self.vc.disconnect()
 
     def generate_embed(self, ctx, song, type):
         TITLE = song['title']
@@ -138,10 +173,10 @@ class music_cog(commands.Cog):
         search = " ".join(args)
 
         userChannel = ctx.author.voice.channel
-        if userChannel is None:
+        if userChannel == None:
             await ctx.send("You must be connected to a voice channel.")
         elif not args:
-            if self.musicQueue == None:
+            if len(self.musicQueue) == 0:
                 await ctx.send("There are no songs in the queue to be played.")
                 return
             elif not self.is_playing:
@@ -160,7 +195,7 @@ class music_cog(commands.Cog):
             else:
                 self.musicQueue.append([song, userChannel])
 
-                if self.is_playing == False:
+                if not self.is_playing:
                     await self.play_music(ctx)
                 else:
                     message = self.generate_embed(ctx, song, 2)
@@ -317,21 +352,22 @@ class music_cog(commands.Cog):
     @ commands.command(name="clear", aliases=["c", "clearqueue"], help="Clears all of the songs from the queue")
     async def clear(self, ctx):
         if self.vc != None and self.is_playing:
-            print(f"clear {self.is_playing}{self.is_paused}")
             self.is_playing = False
             self.is_paused = False
             self.vc.stop()
         self.musicQueue = []
         self.queueIndex = 0
-        print("clear" + str(self.queueIndex))
-        await ctx.send(f"The music queue has been cleared. {self.queueIndex}")
+        await ctx.send(f"The music queue has been cleared.")
 
     # Join VC Command
 
     @ commands.command(name="join", aliases=["j"], help="Connects the bot to the voice channel")
     async def join(self, ctx):
-        userChannel = ctx.author.voice.channel
-        await self.join_VC(ctx, userChannel)
+        if ctx.author.voice:
+            userChannel = ctx.author.voice.channel
+            await self.join_VC(ctx, userChannel)
+        else:
+            await ctx.send("You need to be connected to a voice channel.")
 
     # Leave VC Command
 
@@ -341,6 +377,6 @@ class music_cog(commands.Cog):
         self.is_paused = False
         self.musicQueue = []
         self.queueIndex = 0
-        print("leave" + str(self.queueIndex))
+        await ctx.send(f"{self.bot.user.display_name} has left the building!")
         if self.vc != None:
             await self.vc.disconnect()
