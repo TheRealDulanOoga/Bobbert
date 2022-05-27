@@ -1,21 +1,24 @@
+from lib2to3.pgen2 import token
 import discord
+from discord_components import Select, SelectOption, Button
+from discord.ext import commands
 import asyncio
 from asyncio import run_coroutine_threadsafe
-from discord_components import Select, SelectOption
-from discord.ext import commands
-from youtube_dl import YoutubeDL
-import urllib.parse
-import urllib.request
+from urllib import parse, request
 import re
+import json
+from youtube_dl import YoutubeDL
 
-# TODO Make search command faster (download after selection)
-# TODO Make a cancel button for the search option
 # TODO Make refresh command that restarts the bot
+# TODO Make skip and previous commands replay first and last songs (respectively) when at the ends of queue
 # TODO Make queue command list time left in audio
 # TODO Add playlist mechanics
+# TODO When Jason types #poop play fortnite battle pass 10 hours
 # Made a search command
 # Made bot leave vc after 3 minutes of inactivity
 # Made the bot auto leave the VC when no-one is in it
+# Made search command faster (download after selection)
+# Made a cancel button for the search option
 
 # TODO Load onto raspi
 
@@ -105,9 +108,20 @@ class music_cog(commands.Cog):
         else:
             await self.vc.move_to(channel)
 
+    def get_YT_title(self, VideoID):
+        params = {"format": "json",
+                  "url": "https://www.youtube.com/watch?v=%s" % VideoID}
+        url = "https://www.youtube.com/oembed"
+        query_string = parse.urlencode(params)
+        url = url + "?" + query_string
+        with request.urlopen(url) as response:
+            response_text = response.read()
+            data = json.loads(response_text.decode())
+            return data['title']
+
     def search_YT(self, search):
-        queryString = urllib.parse.urlencode({'search_query': search})
-        htmContent = urllib.request.urlopen(
+        queryString = parse.urlencode({'search_query': search})
+        htmContent = request.urlopen(
             'http://www.youtube.com/results?' + queryString)
         searchResults = re.findall(
             '/watch\?v=(.{11})', htmContent.read().decode())
@@ -146,6 +160,7 @@ class music_cog(commands.Cog):
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
             print("Play_next error")
+            self.queueIndex += 1
             self.is_playing = False
 
     async def play_music(self, ctx):
@@ -162,7 +177,8 @@ class music_cog(commands.Cog):
             self.vc.play(discord.FFmpegPCMAudio(
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
-            await ctx.send(f"There are no songs in the queue to be played. {self.queueIndex}")
+            await ctx.send(f"There are no songs in the queue to be played.")
+            self.queueIndex += 1
             self.is_playing = False
 
     # Play Command
@@ -206,7 +222,7 @@ class music_cog(commands.Cog):
     @ commands.command(name="search", aliases=["find"], help="Searches for a song on YouTube")
     async def search(self, ctx, *args):
         search = " ".join(args)
-        songs = []
+        songNames = []
         selectionOptions = []
         embedText = ""
         userChannel = ctx.author.voice.channel
@@ -216,44 +232,81 @@ class music_cog(commands.Cog):
             return
         await ctx.send("Fetching search results . . .")
 
-        songLinks = self.search_YT(search)
-        for i, link in enumerate(songLinks):
-            song = self.extract_YT(link)
-            if not song:
-                continue
-            songs.append(song)
-            embedText += f"{i + 1} - [{song['title']}]({song['link']})\n"
-        for i, song in enumerate(songs):
+        songTokens = self.search_YT(search)
+
+        for i, token in enumerate(songTokens):
+            url = 'https://www.youtube.com/watch?v=' + token
+            name = self.get_YT_title(token)
+            songNames.append(name)
+            embedText += f"{i + 1} - [{name}]({url})\n"
+
+        for i, title in enumerate(songNames):
             selectionOptions.append(SelectOption(
-                label=f"{i + 1} - {song['title'][:95]}", value=i))
+                label=f"{i + 1} - {title[:95]}", value=i))
         searchResults = discord.Embed(
             title="Search Results",
             description=embedText,
             colour=0xdf1141
         )
-        # await ctx.send(embed=searchResults)
-        selection = Select(
-            placeholder="Select an option",
-
-            options=selectionOptions
-        )
-        await ctx.send(embed=searchResults, components=[selection])
-
-        try:
-            interaction = await self.bot.wait_for("select_option", check=None)
-            songRef = songs[int(interaction.values[0])]
-            embedResponse = discord.Embed(
-                title=f"Option #{int(interaction.values[0]) + 1} Selected",
-                description=f"[{songRef['title']}]({songRef['link']}) added to the queue!",
-                colour=0xdf1141
+        selectionComponents = [
+            Select(
+                placeholder="Select an option",
+                options=selectionOptions
+            ),
+            Button(
+                label="Cancel",
+                custom_id="Cancel",
+                style=4
             )
-            embedResponse.set_thumbnail(url=songRef['thumbnail'])
-            await interaction.send(embed=embedResponse, ephemeral=True)
-            self.musicQueue.append([songRef, userChannel])
-            print("search queue" + len(self.musicQueue))
-            print("\n\n search index" + str(self.queueIndex) + "\n\n")
+        ]
+        message = await ctx.send(embed=searchResults, components=selectionComponents)
+        try:
+            tasks = [
+                asyncio.create_task(self.bot.wait_for(
+                    "button_click",
+                    timeout=60.0,
+                    check=None
+                ), name="button"),
+                asyncio.create_task(self.bot.wait_for(
+                    "select_option",
+                    timeout=60.0,
+                    check=None
+                ), name="select")
+            ]
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+            finished: asyncio.Task = list(done)[0]
+
+            for task in pending:
+                try:
+                    task.cancel()
+                except:
+                    pass
+
+            action = finished.get_name()
+
+            if action == "button":
+                searchResults.title = "Search Cancelled"
+                searchResults.description = ""
+                await message.delete()
+                await ctx.send(embed=searchResults)
+                return
+            elif action == "select":
+                result = finished.result()
+                chosenIndex = int(result.values[0])
+                songRef = self.extract_YT(songTokens[chosenIndex])
+                embedResponse = discord.Embed(
+                    title=f"Option #{int(result.values[0]) + 1} Selected",
+                    description=f"[{songRef['title']}]({songRef['link']}) added to the queue!",
+                    colour=0xdf1141
+                )
+                embedResponse.set_thumbnail(url=songRef['thumbnail'])
+                await message.delete()
+                await ctx.send(embed=embedResponse)
+                self.musicQueue.append([songRef, userChannel])
         except discord.NotFound:
             print("error.")
+            return
 
     # Add Command
 
