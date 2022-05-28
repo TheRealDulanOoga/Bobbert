@@ -201,7 +201,7 @@ class music_cog(commands.Cog):
         aliases=["pl"],
         help="""
             (url || search terms)
-            Plays the audio of a specified YouTube video
+            Plays (or resumes) the audio of a specified YouTube video
             Takes either a url or search terms for a YouTube video and starts playing the first result. If no arguments are specified then the current audio is resumed.
             """
     )
@@ -336,6 +336,9 @@ class music_cog(commands.Cog):
                 result = finished.result()
                 chosenIndex = int(result.values[0])
                 songRef = self.extract_YT(songTokens[chosenIndex])
+                if type(songRef) == type(True):
+                    await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
+                    return
                 embedResponse = discord.Embed(
                     title=f"Option #{int(result.values[0]) + 1} Selected",
                     description=f"[{songRef['title']}]({songRef['link']}) added to the queue!",
@@ -376,6 +379,7 @@ class music_cog(commands.Cog):
             song = self.extract_YT(self.search_YT(search)[0])
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
+                return
             else:
                 self.musicQueue.append([song, userChannel])
                 message = self.generate_embed(ctx, song, 2)
@@ -427,6 +431,7 @@ class music_cog(commands.Cog):
         if not self.vc:
             await ctx.send("There is no audio to be paused at the moment.")
         elif self.is_playing:
+            await ctx.send("Audio paused!")
             self.is_playing = False
             self.is_paused = True
             self.vc.pause()
@@ -446,6 +451,7 @@ class music_cog(commands.Cog):
         if not self.vc:
             await ctx.send("There is no audio to be played at the moment.")
         if self.is_paused:
+            await ctx.send("The audio is now playing!")
             self.is_playing = True
             self.is_paused = False
             self.vc.resume()
@@ -484,7 +490,6 @@ class music_cog(commands.Cog):
         if self.queueIndex >= len(self.musicQueue) - 1:
             await ctx.send("You need to have another song in the queue.")
         elif self.vc != None and self.vc:
-            print(f"skip index {self.queueIndex}")
             self.vc.pause()
             self.queueIndex += 1
             await self.play_music(ctx)
@@ -545,7 +550,7 @@ class music_cog(commands.Cog):
             self.is_paused = False
             self.vc.stop()
         if self.musicQueue != []:
-            await ctx.send(f"The music queue has been cleared.")
+            await ctx.send("The music queue has been cleared.")
             self.musicQueue = []
         self.queueIndex = 0
 
@@ -564,6 +569,7 @@ class music_cog(commands.Cog):
         if ctx.author.voice:
             userChannel = ctx.author.voice.channel
             await self.join_VC(ctx, userChannel)
+            await ctx.send(f"Bobbert has joined {userChannel}!")
         else:
             await ctx.send("You need to be connected to a voice channel.")
 
@@ -584,5 +590,5 @@ class music_cog(commands.Cog):
         self.musicQueue = []
         self.queueIndex = 0
         if self.vc != None:
-            await ctx.send(f"{self.bot.user.display_name} has left the building!")
+            await ctx.send("Bobbert has left the building!")
             await self.vc.disconnect()
