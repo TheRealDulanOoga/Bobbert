@@ -1,4 +1,3 @@
-from lib2to3.pgen2 import token
 import discord
 from discord_components import Select, SelectOption, Button
 from discord.ext import commands
@@ -35,6 +34,10 @@ class music_cog(commands.Cog):
         self.YTDL_OPTIONS = {'format': 'bestaudio', 'nonplaylist': 'True'}
         self.FFMPEG_OPTIONS = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+
+        self.embedBlue = 0x2c76dd
+        self.embedRed = 0xdf1141
+        self.embedGreen = 0x0eaa51
 
         self.vc = None
 
@@ -79,7 +82,7 @@ class music_cog(commands.Cog):
         nowPlaying = discord.Embed(
             title="Now Playing",
             description=f'[{TITLE}]({LINK})',
-            colour=0x1a53ff
+            colour=self.embedBlue
         )
         nowPlaying.set_thumbnail(url=THUMBNAIL)
         nowPlaying.set_footer(
@@ -88,15 +91,25 @@ class music_cog(commands.Cog):
         songAdded = discord.Embed(
             title="Song Added To Queue!",
             description=f'[{TITLE}]({LINK})',
-            colour=0xdf1141
+            colour=self.embedRed
         )
         songAdded.set_thumbnail(url=THUMBNAIL)
         songAdded.set_footer(
             text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
 
+        songRemoved = discord.Embed(
+            title="Song Removed From Queue",
+            description=f'[{TITLE}]({LINK})',
+            colour=self.embedRed
+        )
+        songRemoved.set_thumbnail(url=THUMBNAIL)
+        songRemoved.set_footer(
+            text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+
         match type:
             case 1: return nowPlaying
             case 2: return songAdded
+            case 3: return songRemoved
 
     async def join_VC(self, ctx, channel):
         if self.vc == None or not self.vc.is_connected():
@@ -183,15 +196,24 @@ class music_cog(commands.Cog):
 
     # Play Command
 
-    @ commands.command(name="play", aliases=["p", "playing"], help="Play a song from YouTube")
+    @ commands.command(
+        name="play",
+        aliases=["pl"],
+        help="""
+            (url || search terms)
+            Plays the audio of a specified YouTube video
+            Takes either a url or search terms for a YouTube video and starts playing the first result. If no arguments are specified then the current audio is resumed.
+            """
+    )
     async def play(self, ctx, *args):
-        print("play" + str(self.queueIndex))
         search = " ".join(args)
 
-        userChannel = ctx.author.voice.channel
-        if userChannel == None:
+        try:
+            userChannel = ctx.author.voice.channel
+        except:
             await ctx.send("You must be connected to a voice channel.")
-        elif not args:
+            return
+        if not args:
             if len(self.musicQueue) == 0:
                 await ctx.send("There are no songs in the queue to be played.")
                 return
@@ -219,17 +241,30 @@ class music_cog(commands.Cog):
 
     # Search Command
 
-    @ commands.command(name="search", aliases=["find"], help="Searches for a song on YouTube")
+    @ commands.command(
+        name="search",
+        aliases=["find", "sr"],
+        help="""
+            [url || search terms]
+            Provides a list of YouTube search results
+            Provides a list of the first ten YouTube search results for a url or specified search terms. You can then select one of the results to add to the current queue.
+            """
+    )
     async def search(self, ctx, *args):
         search = " ".join(args)
         songNames = []
         selectionOptions = []
         embedText = ""
-        userChannel = ctx.author.voice.channel
 
         if not args:
             await ctx.send("You must specify search terms to use this command.")
             return
+        try:
+            userChannel = ctx.author.voice.channel
+        except:
+            await ctx.send("You must be connected to a voice channel.")
+            return
+
         await ctx.send("Fetching search results . . .")
 
         songTokens = self.search_YT(search)
@@ -246,7 +281,7 @@ class music_cog(commands.Cog):
         searchResults = discord.Embed(
             title="Search Results",
             description=embedText,
-            colour=0xdf1141
+            colour=self.embedRed
         )
         selectionComponents = [
             Select(
@@ -280,8 +315,15 @@ class music_cog(commands.Cog):
             for task in pending:
                 try:
                     task.cancel()
-                except:
+                except asyncio.CancelledError:
                     pass
+
+            if finished == None:
+                searchResults.title = "Search Failed"
+                searchResults.description = ""
+                await message.delete()
+                await ctx.send(embed=searchResults)
+                return
 
             action = finished.get_name()
 
@@ -290,7 +332,6 @@ class music_cog(commands.Cog):
                 searchResults.description = ""
                 await message.delete()
                 await ctx.send(embed=searchResults)
-                return
             elif action == "select":
                 result = finished.result()
                 chosenIndex = int(result.values[0])
@@ -298,26 +339,38 @@ class music_cog(commands.Cog):
                 embedResponse = discord.Embed(
                     title=f"Option #{int(result.values[0]) + 1} Selected",
                     description=f"[{songRef['title']}]({songRef['link']}) added to the queue!",
-                    colour=0xdf1141
+                    colour=self.embedRed
                 )
                 embedResponse.set_thumbnail(url=songRef['thumbnail'])
                 await message.delete()
                 await ctx.send(embed=embedResponse)
                 self.musicQueue.append([songRef, userChannel])
-        except discord.NotFound:
-            print("error.")
-            return
+        except:
+            searchResults.title = "Search Failed"
+            searchResults.description = ""
+            await message.delete()
+            await ctx.send(embed=searchResults)
 
     # Add Command
 
-    @ commands.command(name="add", aliases=["a"], help="Adds a song to the playlist")
+    @ commands.command(
+        name="add",
+        aliases=["a"],
+        help="""
+            [url || search terms]
+            Adds the first search result to the queue
+            Adds the first YouTube search result for a url or specified search terms to the queue.
+            """
+    )
     async def add(self, ctx, *args):
         search = " ".join(args)
 
-        userChannel = ctx.author.voice.channel
-        if not userChannel:
+        try:
+            userChannel = ctx.author.voice.channel
+        except:
             await ctx.send("You must be connected to a voice channel.")
-        elif not args:
+            return
+        if not args:
             await ctx.send("You need to specify a song to be added.")
         else:
             song = self.extract_YT(self.search_YT(search)[0])
@@ -328,19 +381,70 @@ class music_cog(commands.Cog):
                 message = self.generate_embed(ctx, song, 2)
                 await ctx.send(embed=message)
 
+    # Remove Command
+
+    @ commands.command(
+        name="remove",
+        aliases=["rm"],
+        help="""
+            <>
+            Removes the last song in the queue
+            Removes the last song in the queue.
+            """
+    )
+    async def remove(self, ctx):
+        if self.musicQueue != []:
+            song = self.musicQueue[-1][0]
+            removeSongEmbed = self.generate_embed(ctx, song, 3)
+            await ctx.send(embed=removeSongEmbed)
+        else:
+            await ctx.send("There are no songs to be removed in the queue.")
+        self.musicQueue = self.musicQueue[:-1]
+        if self.musicQueue == []:
+            # clear queue and stop playing
+            if self.vc != None and self.is_playing:
+                self.is_playing = False
+                self.is_paused = False
+                self.vc.stop()
+            self.queueIndex = 0
+        elif self.queueIndex == len(self.musicQueue) and self.vc != None and self.vc:
+            self.vc.pause()
+            self.queueIndex -= 1
+            await self.play_music(ctx)
+
     # Pause Command
 
-    @ commands.command(name="pause", aliases=["stop"], help="Pauses the current song being played")
+    @ commands.command(
+        name="pause",
+        aliases=["stop", "pa"],
+        help="""
+            <>
+            Pauses the current song being played
+            Pauses the current song being played.
+            """,
+    )
     async def pause(self, ctx):
-        if self.is_playing:
+        if not self.vc:
+            await ctx.send("There is no audio to be paused at the moment.")
+        elif self.is_playing:
             self.is_playing = False
             self.is_paused = True
             self.vc.pause()
 
     # Resume Command
 
-    @ commands.command(name="resume", aliases=["r", "unpause"], help="Resumes the current song being played")
+    @ commands.command(
+        name="resume",
+        aliases=["unpause", "re"],
+        help="""
+            <>
+            Resumes a paused song
+            Resumes a paused song
+            """,
+    )
     async def resume(self, ctx):
+        if not self.vc:
+            await ctx.send("There is no audio to be played at the moment.")
         if self.is_paused:
             self.is_playing = True
             self.is_paused = False
@@ -348,7 +452,15 @@ class music_cog(commands.Cog):
 
     # Skip Command
 
-    @ commands.command(name="previous", aliases=["pre"], help="Plays the previous song in the queue")
+    @ commands.command(
+        name="previous",
+        aliases=["pre", "pr"],
+        help="""
+            <>
+            Plays the previous song in the queue
+            Plays the previous song in the queue. If there is no previous song then nothing happens.
+            """,
+    )
     async def previous(self, ctx):
         if self.queueIndex <= 0:
             await ctx.send("There is no previous song in the queue.")
@@ -359,7 +471,15 @@ class music_cog(commands.Cog):
 
     # Skip Command
 
-    @ commands.command(name="skip", aliases=["s", "next"], help="Plays the next song in the queue")
+    @ commands.command(
+        name="skip",
+        aliases=["next", "sk"],
+        help="""
+            <>
+            Skips to the next song in the queue.
+            Skips to the next song in the queue. If there is no following song then nothing happens.
+            """,
+    )
     async def skip(self, ctx):
         if self.queueIndex >= len(self.musicQueue) - 1:
             await ctx.send("You need to have another song in the queue.")
@@ -371,7 +491,15 @@ class music_cog(commands.Cog):
 
     # List Queue Command
 
-    @ commands.command(name="queue", aliases=["q", "list"], help="Lists the four next songs currently in the queue")
+    @ commands.command(
+        name="queue",
+        aliases=["list", "q"],
+        help="""
+            <>
+            Lists the next few songs in the queue.
+            Lists the song that is currently playing and the next few songs in the queue. Up to five songs can be listed depending on how many are in the queue. 
+            """,
+    )
     async def queue(self, ctx):
         returnValue = ""
         if self.musicQueue == []:
@@ -396,25 +524,42 @@ class music_cog(commands.Cog):
         queue = discord.Embed(
             title="Current Queue",
             description=returnValue,
-            colour=0x12b561
+            colour=self.embedGreen
         )
         await ctx.send(embed=queue)
 
     # Clear Queue Command
 
-    @ commands.command(name="clear", aliases=["c", "clearqueue"], help="Clears all of the songs from the queue")
+    @ commands.command(
+        name="clear",
+        aliases=["cl"],
+        help="""
+            <>
+            Clears all of the songs from the queue
+            Stops the current audio from playing and clears all of the songs from the queue.
+            """,
+    )
     async def clear(self, ctx):
         if self.vc != None and self.is_playing:
             self.is_playing = False
             self.is_paused = False
             self.vc.stop()
-        self.musicQueue = []
+        if self.musicQueue != []:
+            await ctx.send(f"The music queue has been cleared.")
+            self.musicQueue = []
         self.queueIndex = 0
-        await ctx.send(f"The music queue has been cleared.")
 
     # Join VC Command
 
-    @ commands.command(name="join", aliases=["j"], help="Connects the bot to the voice channel")
+    @ commands.command(
+        name="join",
+        aliases=["j"],
+        help="""
+            <>
+            Connects Bobbert to the voice channel
+            Connects Bobbert to the voice channel of whoever called the command. If you are not in a voice channel then nothing will happen.
+            """,
+    )
     async def join(self, ctx):
         if ctx.author.voice:
             userChannel = ctx.author.voice.channel
@@ -424,12 +569,20 @@ class music_cog(commands.Cog):
 
     # Leave VC Command
 
-    @ commands.command(name="leave", aliases=["l"], help="Removes the bot from the voice channel")
+    @ commands.command(
+        name="leave",
+        aliases=["l"],
+        help="""
+            <>
+            Removes Bobbert from the voice channel and clears the queue
+            Removes Bobbert from the voice channel and clears all of the songs from the queue.
+            """,
+    )
     async def leave(self, ctx):
         self.is_playing = False
         self.is_paused = False
         self.musicQueue = []
         self.queueIndex = 0
-        await ctx.send(f"{self.bot.user.display_name} has left the building!")
         if self.vc != None:
+            await ctx.send(f"{self.bot.user.display_name} has left the building!")
             await self.vc.disconnect()
