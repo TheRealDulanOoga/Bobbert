@@ -1,5 +1,5 @@
 import discord
-import music_cog
+import os
 from discord.ext import commands
 
 
@@ -35,10 +35,11 @@ class help_cog(commands.Cog):
             """
     )
     async def help(self, ctx, arg=""):
-        music = self.bot.get_cog('music_cog')
-        commands = music.get_commands()
-        command = None
+        helpCog = self.bot.get_cog('help_cog')
+        musicCog = self.bot.get_cog('music_cog')
+        commands = helpCog.get_commands() + musicCog.get_commands()
         if arg != "":
+            command = None
             for i, c in enumerate(commands):
                 if c.name == arg:
                     command = commands[i]
@@ -92,3 +93,18 @@ class help_cog(commands.Cog):
         )
         await ctx.send(embed=commandsEmbed)
         await ctx.send(embed=keyEmbed)
+
+    @commands.command(
+        name="reboot",
+        aliases=["reb", "quit"],
+        help="""
+            <>
+            Completely restarts Bobbert; May take a while.
+            Gives a complete restart of Bobbert and the bot server. This will also update the [code from GitHub](https://github.com/TheRealDulanOoga/Bobbert.git). This command can only be called by the owner of the server.
+            """
+    )
+    async def reboot(self, ctx):
+        if ctx.author.is_owner():
+            os.system("sudo reboot")
+        else:
+            ctx.send("You do not have proper permissions to use this command")
