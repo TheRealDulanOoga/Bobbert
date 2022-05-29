@@ -1,5 +1,6 @@
 import discord
 import os
+import platform
 from discord.ext import commands
 
 
@@ -103,8 +104,15 @@ class help_cog(commands.Cog):
             Gives a complete restart of Bobbert and the bot server. This will also update the [code from GitHub](https://github.com/TheRealDulanOoga/Bobbert.git). This command can only be called by the owner of the server.
             """
     )
+    @commands.has_permissions(administrator=True)
     async def reboot(self, ctx):
-        if ctx.author.is_owner():
+        if platform.system() == "Linux":
+            await ctx.send("Rebooting now! This may take a bit of time.")
             os.system("sudo reboot")
         else:
-            ctx.send("You do not have proper permissions to use this command")
+            await ctx.send("The bot is not currently running on a server that can be rebooted.")
+
+    @reboot.error
+    async def reboot_error(error, ctx):
+        if isinstance(error, commands.CheckFailure):
+            await ctx.send("You do not have proper permissions to reboot the bot.")
