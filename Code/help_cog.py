@@ -1,6 +1,7 @@
 import discord
 import os
 import platform
+import asyncio
 from discord.ext import commands
 
 
@@ -109,6 +110,8 @@ class help_cog(commands.Cog):
         if platform.system() == "Linux":
             await ctx.send("Rebooting now! This may take a bit of time.")
             os.system("sudo reboot")
+            asyncio.sleep(1)
+            os.system("raspi")
         else:
             await ctx.send("The bot is not currently running on a server that can be rebooted.")
 
