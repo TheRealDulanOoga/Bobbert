@@ -8,7 +8,6 @@ import re
 import json
 from youtube_dl import YoutubeDL
 
-# TODO Make refresh command that restarts the bot
 # TODO Make skip and previous commands replay first and last songs (respectively) when at the ends of queue
 # TODO Make queue command list time left in audio
 # TODO Add playlist mechanics
@@ -18,19 +17,20 @@ from youtube_dl import YoutubeDL
 # Made the bot auto leave the VC when no-one is in it
 # Made search command faster (download after selection)
 # Made a cancel button for the search option
-
-# TODO Load onto raspi
+# Loaded onto raspi
+# Made refresh command that restarts the bot
+# Allowed for bot to play in multiple servers at once
 
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        self.is_playing = False
-        self.is_paused = False
+        self.is_playing = {}
+        self.is_paused = {}
+        self.musicQueue = {}
+        self.queueIndex = {}
 
-        self.musicQueue = []
-        self.queueIndex = 0
         self.YTDL_OPTIONS = {'format': 'bestaudio', 'nonplaylist': 'True'}
         self.FFMPEG_OPTIONS = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -39,38 +39,48 @@ class music_cog(commands.Cog):
         self.embedRed = 0xdf1141
         self.embedGreen = 0x0eaa51
 
-        self.vc = None
+        self.vc = {}
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        for guild in self.bot.guilds:
+            id = guild.id
+            self.musicQueue[id] = []
+            self.queueIndex[id] = 0
+            self.vc[id] = None
+            self.is_paused[id] = self.is_playing[id] = False
 
     # Auto Leave
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         # if the trigger was the bot and the action was joining a channel
+        id = member.guild.id
         if member.id == self.bot.user.id and before.channel == None and after.channel != None:
             cooldownMinutes = 3
             time = 0
             while True:
                 await asyncio.sleep(1)
                 time += 1
-                if self.is_playing and not self.is_paused:
+                if self.is_playing[id] and not self.is_paused[id]:
                     time = 0
                 if time == cooldownMinutes * 60:
-                    self.is_playing = False
-                    self.is_paused = False
-                    self.musicQueue = []
+                    self.is_playing[id] = False
+                    self.is_paused[id] = False
+                    self.musicQueue[id] = []
                     self.queueIndex = 0
-                    await self.vc.disconnect()
-                if not self.vc.is_connected():
+                    await self.vc[id].disconnect()
+                if not self.vc[id].is_connected():
                     break
         # if the trigger is a user (not the bot) and the action was leaving a channel
         if member.id != self.bot.user.id and before.channel != None and after.channel != before.channel:
             remainingChannelMembers = before.channel.members
-            if len(remainingChannelMembers) == 1 and remainingChannelMembers[0].id == self.bot.user.id and self.vc.is_connected():
-                self.is_playing = False
-                self.is_paused = False
-                self.musicQueue = []
-                self.queueIndex = 0
-                await self.vc.disconnect()
+            if len(remainingChannelMembers) == 1 and remainingChannelMembers[0].id == self.bot.user.id and self.vc[id].is_connected():
+                self.is_playing[id] = False
+                self.is_paused[id] = False
+                self.musicQueue[id] = []
+                self.queueIndex[id] = 0
+                await self.vc[id].disconnect()
 
     def generate_embed(self, ctx, song, type):
         TITLE = song['title']
@@ -112,14 +122,15 @@ class music_cog(commands.Cog):
             case 3: return songRemoved
 
     async def join_VC(self, ctx, channel):
-        if self.vc == None or not self.vc.is_connected():
-            self.vc = await channel.connect()
+        id = ctx.guild.id
+        if self.vc[id] == None or not self.vc[id].is_connected():
+            self.vc[id] = await channel.connect()
 
-            if self.vc == None:
+            if self.vc[id] == None:
                 await ctx.send("Could not connect to the voice channel.")
                 return
         else:
-            await self.vc.move_to(channel)
+            await self.vc[id].move_to(channel)
 
     def get_YT_title(self, VideoID):
         params = {"format": "json",
@@ -154,13 +165,14 @@ class music_cog(commands.Cog):
         }
 
     def play_next(self, ctx):
-        if not self.is_playing:
+        id = ctx.guild.id
+        if not self.is_playing[id]:
             return
-        if self.queueIndex + 1 < len(self.musicQueue):
-            self.is_playing = True
-            self.queueIndex += 1
+        if self.queueIndex[id] + 1 < len(self.musicQueue[id]):
+            self.is_playing[id] = True
+            self.queueIndex[id] += 1
 
-            song = self.musicQueue[self.queueIndex][0]
+            song = self.musicQueue[id][self.queueIndex[id]][0]
             message = self.generate_embed(ctx, song, 1)
             coro = ctx.send(embed=message)
             fut = run_coroutine_threadsafe(coro, self.bot.loop)
@@ -169,30 +181,31 @@ class music_cog(commands.Cog):
             except:
                 pass
 
-            self.vc.play(discord.FFmpegPCMAudio(
+            self.vc[id].play(discord.FFmpegPCMAudio(
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
             print("Play_next error")
-            self.queueIndex += 1
-            self.is_playing = False
+            self.queueIndex[id] += 1
+            self.is_playing[id] = False
 
     async def play_music(self, ctx):
-        if self.queueIndex < len(self.musicQueue):
-            self.is_playing = True
-            self.is_paused = False
+        id = ctx.guild.id
+        if self.queueIndex[id] < len(self.musicQueue[id]):
+            self.is_playing[id] = True
+            self.is_paused[id] = False
 
-            await self.join_VC(ctx, self.musicQueue[self.queueIndex][1])
+            await self.join_VC(ctx, self.musicQueue[id][self.queueIndex[id]][1])
 
-            song = self.musicQueue[self.queueIndex][0]
+            song = self.musicQueue[id][self.queueIndex[id]][0]
             message = self.generate_embed(ctx, song, 1)
             await ctx.send(embed=message)
 
-            self.vc.play(discord.FFmpegPCMAudio(
+            self.vc[id].play(discord.FFmpegPCMAudio(
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
             await ctx.send(f"There are no songs in the queue to be played.")
-            self.queueIndex += 1
-            self.is_playing = False
+            self.queueIndex[id] += 1
+            self.is_playing[id] = False
 
     # Play Command
 
@@ -207,23 +220,23 @@ class music_cog(commands.Cog):
     )
     async def play(self, ctx, *args):
         search = " ".join(args)
-
+        id = ctx.guild.id
         try:
             userChannel = ctx.author.voice.channel
         except:
             await ctx.send("You must be connected to a voice channel.")
             return
         if not args:
-            if len(self.musicQueue) == 0:
+            if len(self.musicQueue[id]) == 0:
                 await ctx.send("There are no songs in the queue to be played.")
                 return
-            elif not self.is_playing:
-                if self.musicQueue == None or self.vc == None:
+            elif not self.is_playing[id]:
+                if self.musicQueue[id] == None or self.vc[id] == None:
                     await self.play_music(ctx)
                 else:
-                    self.is_paused = False
-                    self.is_playing = True
-                    self.vc.resume()
+                    self.is_paused[id] = False
+                    self.is_playing[id] = True
+                    self.vc[id].resume()
             else:
                 return
         else:
@@ -231,9 +244,9 @@ class music_cog(commands.Cog):
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
             else:
-                self.musicQueue.append([song, userChannel])
+                self.musicQueue[id].append([song, userChannel])
 
-                if not self.is_playing:
+                if not self.is_playing[id]:
                     await self.play_music(ctx)
                 else:
                     message = self.generate_embed(ctx, song, 2)
@@ -347,7 +360,7 @@ class music_cog(commands.Cog):
                 embedResponse.set_thumbnail(url=songRef['thumbnail'])
                 await message.delete()
                 await ctx.send(embed=embedResponse)
-                self.musicQueue.append([songRef, userChannel])
+                self.musicQueue[ctx.guild.id].append([songRef, userChannel])
         except:
             searchResults.title = "Search Failed"
             searchResults.description = ""
@@ -381,7 +394,7 @@ class music_cog(commands.Cog):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
                 return
             else:
-                self.musicQueue.append([song, userChannel])
+                self.musicQueue[ctx.guild.id].append([song, userChannel])
                 message = self.generate_embed(ctx, song, 2)
                 await ctx.send(embed=message)
 
@@ -397,23 +410,24 @@ class music_cog(commands.Cog):
             """
     )
     async def remove(self, ctx):
-        if self.musicQueue != []:
-            song = self.musicQueue[-1][0]
+        id = ctx.guild.id
+        if self.musicQueue[id] != []:
+            song = self.musicQueue[id][-1][0]
             removeSongEmbed = self.generate_embed(ctx, song, 3)
             await ctx.send(embed=removeSongEmbed)
         else:
             await ctx.send("There are no songs to be removed in the queue.")
-        self.musicQueue = self.musicQueue[:-1]
-        if self.musicQueue == []:
+        self.musicQueue[id] = self.musicQueue[id][:-1]
+        if self.musicQueue[id] == []:
             # clear queue and stop playing
-            if self.vc != None and self.is_playing:
-                self.is_playing = False
-                self.is_paused = False
-                self.vc.stop()
-            self.queueIndex = 0
-        elif self.queueIndex == len(self.musicQueue) and self.vc != None and self.vc:
-            self.vc.pause()
-            self.queueIndex -= 1
+            if self.vc[id] != None and self.is_playing[id]:
+                self.is_playing[id] = False
+                self.is_paused[id] = False
+                self.vc[id].stop()
+            self.queueIndex[id] = 0
+        elif self.queueIndex[id] == len(self.musicQueue[id]) and self.vc[id] != None and self.vc[id]:
+            self.vc[id].pause()
+            self.queueIndex[id] -= 1
             await self.play_music(ctx)
 
     # Pause Command
@@ -428,13 +442,14 @@ class music_cog(commands.Cog):
             """,
     )
     async def pause(self, ctx):
-        if not self.vc:
+        id = ctx.guild.id
+        if not self.vc[id]:
             await ctx.send("There is no audio to be paused at the moment.")
-        elif self.is_playing:
+        elif self.is_playing[id]:
             await ctx.send("Audio paused!")
-            self.is_playing = False
-            self.is_paused = True
-            self.vc.pause()
+            self.is_playing[id] = False
+            self.is_paused[id] = True
+            self.vc[id].pause()
 
     # Resume Command
 
@@ -448,13 +463,14 @@ class music_cog(commands.Cog):
             """,
     )
     async def resume(self, ctx):
-        if not self.vc:
+        id = ctx.guild.id
+        if not self.vc[id]:
             await ctx.send("There is no audio to be played at the moment.")
-        if self.is_paused:
+        if self.is_paused[id]:
             await ctx.send("The audio is now playing!")
-            self.is_playing = True
-            self.is_paused = False
-            self.vc.resume()
+            self.is_playing[id] = True
+            self.is_paused[id] = False
+            self.vc[id].resume()
 
     # Skip Command
 
@@ -468,11 +484,12 @@ class music_cog(commands.Cog):
             """,
     )
     async def previous(self, ctx):
-        if self.queueIndex <= 0:
+        id = ctx.guild.id
+        if self.queueIndex[id] <= 0:
             await ctx.send("There is no previous song in the queue.")
-        elif self.vc != None and self.vc:
-            self.vc.pause()
-            self.queueIndex -= 1
+        elif self.vc[id] != None and self.vc[id]:
+            self.vc[id].pause()
+            self.queueIndex[id] -= 1
             await self.play_music(ctx)
 
     # Skip Command
@@ -487,11 +504,12 @@ class music_cog(commands.Cog):
             """,
     )
     async def skip(self, ctx):
-        if self.queueIndex >= len(self.musicQueue) - 1:
+        id = ctx.guild.id
+        if self.queueIndex[id] >= len(self.musicQueue[id]) - 1:
             await ctx.send("You need to have another song in the queue.")
-        elif self.vc != None and self.vc:
-            self.vc.pause()
-            self.queueIndex += 1
+        elif self.vc[id] != None and self.vc[id]:
+            self.vc[id].pause()
+            self.queueIndex[id] += 1
             await self.play_music(ctx)
 
     # List Queue Command
@@ -506,21 +524,23 @@ class music_cog(commands.Cog):
             """,
     )
     async def queue(self, ctx):
+        id = ctx.guild.id
         returnValue = ""
-        if self.musicQueue == []:
+        if self.musicQueue[id] == []:
             await ctx.send("There are no songs in the queue.")
             return
 
-        for i in range(self.queueIndex, len(self.musicQueue)):
-            upNextSongs = len(self.musicQueue) - self.queueIndex
+        for i in range(self.queueIndex[id], len(self.musicQueue[id])):
+            upNextSongs = len(
+                self.musicQueue[id]) - self.queueIndex[id]
             if i > 5 + upNextSongs:
                 break
-            returnIndex = i - self.queueIndex
+            returnIndex = i - self.queueIndex[id]
             if returnIndex == 0:
                 returnIndex = "Playing"
             elif returnIndex == 1:
                 returnIndex = "Next"
-            returnValue += f"{returnIndex} - [{self.musicQueue[i][0]['title']}]({self.musicQueue[i][0]['link']})\n"
+            returnValue += f"{returnIndex} - [{self.musicQueue[id][i][0]['title']}]({self.musicQueue[id][i][0]['link']})\n"
 
             if returnValue == "":
                 await ctx.send("There are no songs in the queue.")
@@ -545,14 +565,15 @@ class music_cog(commands.Cog):
             """,
     )
     async def clear(self, ctx):
-        if self.vc != None and self.is_playing:
-            self.is_playing = False
-            self.is_paused = False
-            self.vc.stop()
-        if self.musicQueue != []:
+        id = ctx.guild.id
+        if self.vc[id] != None and self.is_playing[id]:
+            self.is_playing[id] = False
+            self.is_paused[id] = False
+            self.vc[id].stop()
+        if self.musicQueue[id] != []:
             await ctx.send("The music queue has been cleared.")
-            self.musicQueue = []
-        self.queueIndex = 0
+            self.musicQueue[id] = []
+        self.queueIndex[id] = 0
 
     # Join VC Command
 
@@ -585,10 +606,11 @@ class music_cog(commands.Cog):
             """,
     )
     async def leave(self, ctx):
-        self.is_playing = False
-        self.is_paused = False
-        self.musicQueue = []
-        self.queueIndex = 0
-        if self.vc != None:
+        id = ctx.guild.id
+        self.is_playing[id] = False
+        self.is_paused[id] = False
+        self.musicQueue[id] = []
+        self.queueIndex[id] = 0
+        if self.vc[id] != None:
             await ctx.send("Bobbert has left the building!")
             await self.vc.disconnect()
