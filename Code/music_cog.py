@@ -8,10 +8,8 @@ import re
 import json
 from youtube_dl import YoutubeDL
 
-# TODO Make skip and previous commands replay first and last songs (respectively) when at the ends of queue
 # TODO Make queue command list time left in audio
 # TODO Add playlist mechanics
-# TODO When Jason types #poop play fortnite battle pass 10 hours
 # Made a search command
 # Made bot leave vc after 3 minutes of inactivity
 # Made the bot auto leave the VC when no-one is in it
@@ -20,6 +18,7 @@ from youtube_dl import YoutubeDL
 # Loaded onto raspi
 # Made refresh command that restarts the bot
 # Allowed for bot to play in multiple servers at once
+# Made skip and previous commands replay first and last songs (respectively) when at the ends of queue
 
 
 class music_cog(commands.Cog):
@@ -81,6 +80,15 @@ class music_cog(commands.Cog):
                 self.musicQueue[id] = []
                 self.queueIndex[id] = 0
                 await self.vc[id].disconnect()
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        with open('token.txt', 'r') as file:
+            userID = file.readlines()[1]
+        if '#poop' in message.content and message.author.id == userID:
+            await message.channel.send("I gotcha fam ;)")
+            ctx = await self.bot.get_context(message)
+            await self.play(ctx, "https://youtu.be/AkJYdRGu14Y")
 
     def generate_embed(self, ctx, song, type):
         TITLE = song['title']
@@ -486,7 +494,9 @@ class music_cog(commands.Cog):
     async def previous(self, ctx):
         id = ctx.guild.id
         if self.queueIndex[id] <= 0:
-            await ctx.send("There is no previous song in the queue.")
+            await ctx.send("There is no previous song in the queue. Replaying current song.")
+            self.vc[id].pause()
+            await self.play_music(ctx)
         elif self.vc[id] != None and self.vc[id]:
             self.vc[id].pause()
             self.queueIndex[id] -= 1
@@ -506,7 +516,9 @@ class music_cog(commands.Cog):
     async def skip(self, ctx):
         id = ctx.guild.id
         if self.queueIndex[id] >= len(self.musicQueue[id]) - 1:
-            await ctx.send("You need to have another song in the queue.")
+            await ctx.send("You need to have another song in the queue. Replaying current song.")
+            self.vc[id].pause()
+            await self.play_music(ctx)
         elif self.vc[id] != None and self.vc[id]:
             self.vc[id].pause()
             self.queueIndex[id] += 1
@@ -613,4 +625,4 @@ class music_cog(commands.Cog):
         self.queueIndex[id] = 0
         if self.vc[id] != None:
             await ctx.send("Bobbert has left the building!")
-            await self.vc.disconnect()
+            await self.vc[id].disconnect()

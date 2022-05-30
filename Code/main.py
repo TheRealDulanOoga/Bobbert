@@ -19,5 +19,5 @@ path = os.getcwd()[:index]
 os.chdir(path)
 
 with open('token.txt', 'r') as file:
-    token = file.read()
+    token = file.readlines()[0]
 bot.run(token)
