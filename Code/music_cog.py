@@ -85,10 +85,12 @@ class music_cog(commands.Cog):
     async def on_message(self, message):
         with open('token.txt', 'r') as file:
             userID = file.readlines()[1]
-        if '#poop' in message.content and message.author.id == userID:
+        if '#poop' in message.content and str(message.author.id) == userID:
             await message.channel.send("I gotcha fam ;)")
             ctx = await self.bot.get_context(message)
             await self.play(ctx, "https://youtu.be/AkJYdRGu14Y")
+        elif '#poop' in message.content:
+            print("#poop not available")
 
     def generate_embed(self, ctx, song, type):
         TITLE = song['title']
