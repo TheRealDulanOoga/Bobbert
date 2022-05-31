@@ -43,7 +43,7 @@ class music_cog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         for guild in self.bot.guilds:
-            id = guild.id
+            id = int(guild.id)
             self.musicQueue[id] = []
             self.queueIndex[id] = 0
             self.vc[id] = None
@@ -54,7 +54,7 @@ class music_cog(commands.Cog):
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         # if the trigger was the bot and the action was joining a channel
-        id = member.guild.id
+        id = int(member.guild.id)
         if member.id == self.bot.user.id and before.channel == None and after.channel != None:
             cooldownMinutes = 3
             time = 0
@@ -132,7 +132,7 @@ class music_cog(commands.Cog):
             case 3: return songRemoved
 
     async def join_VC(self, ctx, channel):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if self.vc[id] == None or not self.vc[id].is_connected():
             self.vc[id] = await channel.connect()
 
@@ -175,7 +175,7 @@ class music_cog(commands.Cog):
         }
 
     def play_next(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if not self.is_playing[id]:
             return
         if self.queueIndex[id] + 1 < len(self.musicQueue[id]):
@@ -199,7 +199,7 @@ class music_cog(commands.Cog):
             self.is_playing[id] = False
 
     async def play_music(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if self.queueIndex[id] < len(self.musicQueue[id]):
             self.is_playing[id] = True
             self.is_paused[id] = False
@@ -230,7 +230,7 @@ class music_cog(commands.Cog):
     )
     async def play(self, ctx, *args):
         search = " ".join(args)
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         try:
             userChannel = ctx.author.voice.channel
         except:
@@ -420,7 +420,7 @@ class music_cog(commands.Cog):
             """
     )
     async def remove(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if self.musicQueue[id] != []:
             song = self.musicQueue[id][-1][0]
             removeSongEmbed = self.generate_embed(ctx, song, 3)
@@ -452,7 +452,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def pause(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if not self.vc[id]:
             await ctx.send("There is no audio to be paused at the moment.")
         elif self.is_playing[id]:
@@ -473,7 +473,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def resume(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if not self.vc[id]:
             await ctx.send("There is no audio to be played at the moment.")
         if self.is_paused[id]:
@@ -494,7 +494,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def previous(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if self.queueIndex[id] <= 0:
             await ctx.send("There is no previous song in the queue. Replaying current song.")
             self.vc[id].pause()
@@ -516,7 +516,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def skip(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if self.queueIndex[id] >= len(self.musicQueue[id]) - 1:
             await ctx.send("You need to have another song in the queue. Replaying current song.")
             self.vc[id].pause()
@@ -538,7 +538,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def queue(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         returnValue = ""
         if self.musicQueue[id] == []:
             await ctx.send("There are no songs in the queue.")
@@ -579,7 +579,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def clear(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         if self.vc[id] != None and self.is_playing[id]:
             self.is_playing[id] = False
             self.is_paused[id] = False
@@ -620,7 +620,7 @@ class music_cog(commands.Cog):
             """,
     )
     async def leave(self, ctx):
-        id = ctx.guild.id
+        id = int(ctx.guild.id)
         self.is_playing[id] = False
         self.is_paused[id] = False
         self.musicQueue[id] = []
