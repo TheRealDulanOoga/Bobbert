@@ -6,6 +6,7 @@ from asyncio import run_coroutine_threadsafe
 from urllib import parse, request
 import re
 import json
+import os
 from youtube_dl import YoutubeDL
 
 # TODO Make queue command list time left in audio
@@ -24,6 +25,7 @@ from youtube_dl import YoutubeDL
 class music_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.cwd = os.getcwd()
 
         self.is_playing = {}
         self.is_paused = {}
@@ -83,14 +85,19 @@ class music_cog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        # go up past Bobbert folder
+        index = self.cwd.find("Bobbert")
+        path = self.cwd[:index]
+        os.chdir(path)
         with open('token.txt', 'r') as file:
             userID = file.readlines()[1]
-        if '#poop' in message.content and str(message.author.id) == userID:
+        if '#poop' in message.content and message.author.id == userID:
             await message.channel.send("I gotcha fam ;)")
             ctx = await self.bot.get_context(message)
             await self.play(ctx, "https://youtu.be/AkJYdRGu14Y")
         elif '#poop' in message.content:
             print("#poop not available")
+        os.chdir(self.cwd)
 
     def generate_embed(self, ctx, song, type):
         TITLE = song['title']
