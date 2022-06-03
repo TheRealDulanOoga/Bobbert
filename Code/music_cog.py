@@ -89,17 +89,12 @@ class music_cog(commands.Cog):
         index = self.cwd.find("Bobbert")
         path = self.cwd[:index]
         os.chdir(path)
-        print(message.author.id, message.author, message.author.name)
-        print(message.content)
         with open('token.txt', 'r') as file:
             userID = int(file.readlines()[1])
-        print("UserID: "+str(userID))
         if '#poop' in message.content and message.author.id == userID:
             await message.channel.send("I gotcha fam ;)")
             ctx = await self.bot.get_context(message)
             await self.play(ctx, "https://youtu.be/AkJYdRGu14Y")
-        elif '#poop' in message.content:
-            print("#poop not available")
         os.chdir(self.cwd)
 
     def generate_embed(self, ctx, song, type):
