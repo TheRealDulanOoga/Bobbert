@@ -89,8 +89,11 @@ class music_cog(commands.Cog):
         index = self.cwd.find("Bobbert")
         path = self.cwd[:index]
         os.chdir(path)
+        print(message.author.id, message.author, message.author.name)
+        print(message.content)
         with open('token.txt', 'r') as file:
-            userID = file.readlines()[1]
+            userID = int(file.readlines()[1])
+        print("UserID: "+str(userID))
         if '#poop' in message.content and message.author.id == userID:
             await message.channel.send("I gotcha fam ;)")
             ctx = await self.bot.get_context(message)
@@ -502,7 +505,9 @@ class music_cog(commands.Cog):
     )
     async def previous(self, ctx):
         id = int(ctx.guild.id)
-        if self.queueIndex[id] <= 0:
+        if self.vc[id] == None:
+            await ctx.send("You need to be in a VC to use this command.")
+        elif self.queueIndex[id] <= 0:
             await ctx.send("There is no previous song in the queue. Replaying current song.")
             self.vc[id].pause()
             await self.play_music(ctx)
@@ -524,7 +529,9 @@ class music_cog(commands.Cog):
     )
     async def skip(self, ctx):
         id = int(ctx.guild.id)
-        if self.queueIndex[id] >= len(self.musicQueue[id]) - 1:
+        if self.vc[id] == None:
+            await ctx.send("You need to be in a VC to use this command.")
+        elif self.queueIndex[id] >= len(self.musicQueue[id]) - 1:
             await ctx.send("You need to have another song in the queue. Replaying current song.")
             self.vc[id].pause()
             await self.play_music(ctx)
