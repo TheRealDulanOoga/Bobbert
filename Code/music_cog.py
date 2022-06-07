@@ -58,7 +58,7 @@ class music_cog(commands.Cog):
         # if the trigger was the bot and the action was joining a channel
         id = int(member.guild.id)
         if member.id == self.bot.user.id and before.channel == None and after.channel != None:
-            cooldownMinutes = 3
+            cooldownMinutes = 10
             time = 0
             while True:
                 await asyncio.sleep(1)
@@ -69,7 +69,7 @@ class music_cog(commands.Cog):
                     self.is_playing[id] = False
                     self.is_paused[id] = False
                     self.musicQueue[id] = []
-                    self.queueIndex = 0
+                    self.queueIndex[id] = 0
                     await self.vc[id].disconnect()
                 if not self.vc[id].is_connected():
                     break
