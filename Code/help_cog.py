@@ -1,6 +1,5 @@
 import discord
 import os
-import platform
 from discord.ext import commands
 
 
@@ -9,21 +8,32 @@ class help_cog(commands.Cog):
         self.bot = bot
         self.embedOrange = 0xeab148
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        sendToChannels = []
-        for guild in self.bot.guilds:
-            channel = guild.text_channels[0]
-            sendToChannels.append(channel)
-        helloEmbed = discord.Embed(
+    def helloEmbedGen(self, name):
+        embed = discord.Embed(
             title="Hello There!",
-            description="""
-            Hello, I'm Bobbert! You can type any command after typing my prefix **`'!'`** to activate them. Use **`!help`** to see some command options.
+            description=f"""
+            Hello, I'm {name}! You can type any command after typing my prefix **`'{self.bot.command_prefix}'`** to activate them. Use **`!help`** to see some command options.
             
             Here is a link to my [source code](https://github.com/TheRealDulanOoga/Bobbert.git) if you wanted to check it out!""",
             colour=self.embedOrange
         )
+        return embed
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        sendToChannels = []
+        botNames = {}
+        for guild in self.bot.guilds:
+            channel = guild.text_channels[0]
+            sendToChannels.append(channel)
+            botMember = await guild.fetch_member(975410595576840272)
+            nickname = botMember.nick
+            if nickname == None:
+                nickname = botMember.name
+            botNames[guild.id] = nickname
         for channel in sendToChannels:
+            helloEmbed = self.helloEmbedGen(
+                botNames[channel.guild.id])
             await channel.send(embed=helloEmbed)
 
     @commands.command(
@@ -97,22 +107,18 @@ class help_cog(commands.Cog):
 
     @commands.command(
         name="reboot",
-        aliases=["reb", "quit"],
+        aliases=["rb"],
         help="""
             <>
-            Completely restarts Bobbert; May take a while.
-            Gives a complete restart of Bobbert and the bot server. This will also update the [code from GitHub](https://github.com/TheRealDulanOoga/Bobbert.git). This command can only be called by the owner of the server.
+            Completely restarts the bot.
+            Gives a complete restart of the bot. This will also update the [code from GitHub](https://github.com/TheRealDulanOoga/Bobbert.git). This command can only be called by the owner of the server.
             """
     )
     @commands.has_permissions(administrator=True)
     async def reboot(self, ctx):
-        if platform.system() == "Linux":
-            await ctx.send("Rebooting now! This may take a bit of time.")
-            os.system("sudo reboot")
+        if ctx.message.author.guild_permissions.administrator:
+            await ctx.send("Rebooting application now!")
+            os.system("sh reboot.sh")
+            exit("Rebooting script")
         else:
-            await ctx.send("The bot is not currently running on a server that can be rebooted.")
-
-    @reboot.error
-    async def reboot_error(error, ctx):
-        if isinstance(error, commands.CheckFailure):
-            await ctx.send("You do not have proper permissions to reboot the bot.")
+            await ctx.send("You do not have proper permissions to reboot me.")

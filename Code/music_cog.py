@@ -26,15 +26,22 @@ class music_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.cwd = os.getcwd()
+        self.names = {}
 
         self.is_playing = {}
         self.is_paused = {}
         self.musicQueue = {}
         self.queueIndex = {}
 
-        self.YTDL_OPTIONS = {'format': 'bestaudio', 'nonplaylist': 'True'}
+        self.YTDL_OPTIONS = {
+            'format': 'bestaudio',
+            'nonplaylist': 'True',
+            'quiet': True
+        }
         self.FFMPEG_OPTIONS = {
-            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+            'options': '-vn'
+        }
 
         self.embedBlue = 0x2c76dd
         self.embedRed = 0xdf1141
@@ -50,6 +57,12 @@ class music_cog(commands.Cog):
             self.queueIndex[id] = 0
             self.vc[id] = None
             self.is_paused[id] = self.is_playing[id] = False
+
+            botMember = await guild.fetch_member(975410595576840272)
+            nickname = botMember.nick
+            if nickname == None:
+                nickname = botMember.name
+            self.names[id] = nickname
 
     # Auto Leave
 
@@ -260,6 +273,12 @@ class music_cog(commands.Cog):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
             else:
                 self.musicQueue[id].append([song, userChannel])
+
+                if self.is_paused[id]:
+                    await ctx.send("Audio resumed!")
+                    self.is_playing[id] = True
+                    self.is_paused[id] = False
+                    self.vc[id].resume()
 
                 if not self.is_playing[id]:
                     await self.play_music(ctx)
@@ -605,15 +624,15 @@ class music_cog(commands.Cog):
         aliases=["j"],
         help="""
             <>
-            Connects Bobbert to the voice channel
-            Connects Bobbert to the voice channel of whoever called the command. If you are not in a voice channel then nothing will happen.
+            Connects the bot to the voice channel
+            Connects the bot to the voice channel of whoever called the command. If you are not in a voice channel then nothing will happen.
             """,
     )
     async def join(self, ctx):
         if ctx.author.voice:
             userChannel = ctx.author.voice.channel
             await self.join_VC(ctx, userChannel)
-            await ctx.send(f"Bobbert has joined {userChannel}!")
+            await ctx.send(f"{self.names[ctx.guild.id]} has joined {userChannel}!")
         else:
             await ctx.send("You need to be connected to a voice channel.")
 
@@ -624,8 +643,8 @@ class music_cog(commands.Cog):
         aliases=["l"],
         help="""
             <>
-            Removes Bobbert from the voice channel and clears the queue
-            Removes Bobbert from the voice channel and clears all of the songs from the queue.
+            Removes the bot from the voice channel and clears the queue
+            Removes the bot from the voice channel and clears all of the songs from the queue.
             """,
     )
     async def leave(self, ctx):
@@ -635,5 +654,5 @@ class music_cog(commands.Cog):
         self.musicQueue[id] = []
         self.queueIndex[id] = 0
         if self.vc[id] != None:
-            await ctx.send("Bobbert has left the building!")
+            await ctx.send(f"{self.names[id]} has left the building! The queue has been cleared as well.")
             await self.vc[id].disconnect()
