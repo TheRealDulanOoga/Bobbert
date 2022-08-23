@@ -13,11 +13,6 @@ bot.remove_command('help')
 bot.add_cog(music_cog(bot))
 bot.add_cog(help_cog(bot))
 
-# go up past Bobbert folder
-index = os.getcwd().find("Bobbert")
-path = os.getcwd()[:index]
-os.chdir(path)
-
 with open('token.txt', 'r') as file:
     token = file.readlines()[0]
 bot.run(token)

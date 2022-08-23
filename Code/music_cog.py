@@ -98,10 +98,6 @@ class music_cog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # go up past Bobbert folder
-        index = self.cwd.find("Bobbert")
-        path = self.cwd[:index]
-        os.chdir(path)
         with open('token.txt', 'r') as file:
             userID = int(file.readlines()[1])
         if '#poop' in message.content and message.author.id == userID:
