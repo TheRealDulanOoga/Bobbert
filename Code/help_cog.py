@@ -1,5 +1,5 @@
 import discord
-import os
+import datetime
 from discord.ext import commands
 
 
@@ -31,7 +31,7 @@ class help_cog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        print(str(error))
+        print(print("[" + datetime.time.now() + "] " + str(error)))
         await ctx.send(embed=self.errorEmbedGen(error))
 
     @ commands.Cog.listener()

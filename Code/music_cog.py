@@ -7,6 +7,7 @@ from urllib import parse, request
 import re
 import json
 import os
+import datetime
 from youtube_dl import YoutubeDL
 
 # TODO Make queue command list time left in audio
@@ -109,7 +110,7 @@ class music_cog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        print(str(error))
+        print("[" + datetime.time.now() + "] " + str(error))
         await ctx.send(embed=self.errorEmbedGen(error))
 
     def errorEmbedGen(self, error):
