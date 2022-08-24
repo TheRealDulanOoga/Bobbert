@@ -7,19 +7,34 @@ class help_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.embedOrange = 0xeab148
+        self.embedDarkPink = 0x7d3243
 
     def helloEmbedGen(self, name):
         embed = discord.Embed(
             title="Hello There!",
             description=f"""
             Hello, I'm {name}! You can type any command after typing my prefix **`'{self.bot.command_prefix}'`** to activate them. Use **`!help`** to see some command options.
-            
+
             Here is a link to my [source code](https://github.com/TheRealDulanOoga/Bobbert.git) if you wanted to check it out!""",
             colour=self.embedOrange
         )
         return embed
 
+    def errorEmbedGen(self, error):
+        embed = discord.Embed(
+            title="ERROR :(",
+            description="There was an error. You can likely keep using the bot as is, or just to be safe, you can ask your server administrator to use !reboot to reboot the bot.\n\nError:\n**`" +
+            str(error) + "`**",
+            colour=self.embedDarkPink
+        )
+        return embed
+
     @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        print(str(error))
+        await ctx.send(embed=self.errorEmbedGen(error))
+
+    @ commands.Cog.listener()
     async def on_ready(self):
         sendToChannels = []
         botNames = {}
@@ -36,7 +51,7 @@ class help_cog(commands.Cog):
                 botNames[channel.guild.id])
             await channel.send(embed=helloEmbed)
 
-    @commands.command(
+    @ commands.command(
         name="help",
         aliases=["h"],
         help="""
@@ -70,7 +85,7 @@ class help_cog(commands.Cog):
                 Arguments: **`{arguments}`**
                 {longHelp}
 
-                Aliases: **`{aliases}`**       
+                Aliases: **`{aliases}`**
                 """,
                 colour=self.embedOrange
             )
@@ -105,7 +120,7 @@ class help_cog(commands.Cog):
         await ctx.send(embed=commandsEmbed)
         await ctx.send(embed=keyEmbed)
 
-    @commands.command(
+    @ commands.command(
         name="reboot",
         aliases=["rb"],
         help="""
@@ -114,11 +129,9 @@ class help_cog(commands.Cog):
             Gives a complete restart of the bot. This will also update the [code from GitHub](https://github.com/TheRealDulanOoga/Bobbert.git). This command can only be called by the owner of the server.
             """
     )
-    @commands.has_permissions(administrator=True)
     async def reboot(self, ctx):
         if ctx.message.author.guild_permissions.administrator:
             await ctx.send("Rebooting application now!")
-            os.system("sh reboot.sh")
-            exit("Rebooting script")
+            await self.bot.close()
         else:
             await ctx.send("You do not have proper permissions to reboot me.")

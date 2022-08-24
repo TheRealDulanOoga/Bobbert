@@ -46,6 +46,7 @@ class music_cog(commands.Cog):
         self.embedBlue = 0x2c76dd
         self.embedRed = 0xdf1141
         self.embedGreen = 0x0eaa51
+        self.embedDarkPink = 0x7d3243
 
         self.vc = {}
 
@@ -105,6 +106,20 @@ class music_cog(commands.Cog):
             ctx = await self.bot.get_context(message)
             await self.play(ctx, "https://youtu.be/AkJYdRGu14Y")
         os.chdir(self.cwd)
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        print(str(error))
+        await ctx.send(embed=self.errorEmbedGen(error))
+
+    def errorEmbedGen(self, error):
+        embed = discord.Embed(
+            title="ERROR :(",
+            description="There was an error. You can likely keep using the bot as is, or just to be safe, you can ask your server administrator to use !reboot to reboot the bot.\n\nError:\n**`" +
+            str(error) + "`**",
+            colour=self.embedDarkPink
+        )
+        return embed
 
     def generate_embed(self, ctx, song, type):
         TITLE = song['title']

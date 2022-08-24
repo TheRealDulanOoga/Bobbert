@@ -1,6 +1,5 @@
 from discord_components import ComponentsBot
 from discord import Activity, ActivityType
-import os
 
 from help_cog import help_cog
 from music_cog import music_cog
