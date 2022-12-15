@@ -131,37 +131,49 @@ class music_cog(commands.Cog):
         AUTHOR = ctx.author
         AVATAR = AUTHOR.avatar_url
 
-        nowPlaying = discord.Embed(
-            title="Now Playing",
-            description=f'[{TITLE}]({LINK})',
-            colour=self.embedBlue
-        )
-        nowPlaying.set_thumbnail(url=THUMBNAIL)
-        nowPlaying.set_footer(
-            text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+        if type == 1:
+            nowPlaying = discord.Embed(
+                title="Now Playing",
+                description=f'[{TITLE}]({LINK})',
+                colour=self.embedBlue
+            )
+            nowPlaying.set_thumbnail(url=THUMBNAIL)
+            nowPlaying.set_footer(
+                text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+            return nowPlaying
 
-        songAdded = discord.Embed(
-            title="Song Added To Queue!",
-            description=f'[{TITLE}]({LINK})',
-            colour=self.embedRed
-        )
-        songAdded.set_thumbnail(url=THUMBNAIL)
-        songAdded.set_footer(
-            text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+        if type == 2:
+            songAdded = discord.Embed(
+                title="Song Added To Queue!",
+                description=f'[{TITLE}]({LINK})',
+                colour=self.embedRed
+            )
+            songAdded.set_thumbnail(url=THUMBNAIL)
+            songAdded.set_footer(
+                text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+            return songAdded
 
-        songRemoved = discord.Embed(
-            title="Song Removed From Queue",
-            description=f'[{TITLE}]({LINK})',
-            colour=self.embedRed
-        )
-        songRemoved.set_thumbnail(url=THUMBNAIL)
-        songRemoved.set_footer(
-            text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+        if type == 4:
+            songInserted = discord.Embed(
+                title="Song Inserted Next In Queue!",
+                description=f'[{TITLE}]({LINK})',
+                colour=self.embedRed
+            )
+            songInserted.set_thumbnail(url=THUMBNAIL)
+            songInserted.set_footer(
+                text=f"Song inserted by: {str(AUTHOR)}", icon_url=AVATAR)
+            return songInserted
 
-        match type:
-            case 1: return nowPlaying
-            case 2: return songAdded
-            case 3: return songRemoved
+        if type == 3:
+            songRemoved = discord.Embed(
+                title="Song Removed From Queue",
+                description=f'[{TITLE}]({LINK})',
+                colour=self.embedRed
+            )
+            songRemoved.set_thumbnail(url=THUMBNAIL)
+            songRemoved.set_footer(
+                text=f"Song added by: {str(AUTHOR)}", icon_url=AVATAR)
+            return songRemoved
 
     async def join_VC(self, ctx, channel):
         id = int(ctx.guild.id)
@@ -444,6 +456,38 @@ class music_cog(commands.Cog):
             else:
                 self.musicQueue[ctx.guild.id].append([song, userChannel])
                 message = self.generate_embed(ctx, song, 2)
+                await ctx.send(embed=message)
+
+    # AddNext Command
+
+    @ commands.command(
+        name="addnext",
+        aliases=["an", "addn", "pln", "playnext"],
+        help="""
+            [url || search terms]
+            Inserts the first search result next in the queue
+            Inserts the first YouTube search result for a url or specified search terms next in the queue.
+            """
+    )
+    async def addNext(self, ctx, *args):
+        search = " ".join(args)
+
+        try:
+            userChannel = ctx.author.voice.channel
+        except:
+            await ctx.send("You must be connected to a voice channel.")
+            return
+        if not args:
+            await ctx.send("You need to specify a song to be added.")
+        else:
+            song = self.extract_YT(self.search_YT(search)[0])
+            if type(song) == type(True):
+                await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
+                return
+            else:
+                self.musicQueue[ctx.guild.id].insert(
+                    self.queueIndex + 1, [song, userChannel])
+                message = self.generate_embed(ctx, song, 4)
                 await ctx.send(embed=message)
 
     # Remove Command
