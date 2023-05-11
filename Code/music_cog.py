@@ -1,5 +1,5 @@
 import discord
-from discord_components import Select, SelectOption, Button
+#from discord_components import Select, SelectOption, Button
 from discord.ext import commands
 import asyncio
 from asyncio import run_coroutine_threadsafe
@@ -21,6 +21,10 @@ from youtube_dl import YoutubeDL
 # Made refresh command that restarts the bot
 # Allowed for bot to play in multiple servers at once
 # Made skip and previous commands replay first and last songs (respectively) when at the ends of queue
+
+
+async def setup(bot):
+    await bot.add_cog(music_cog(bot))
 
 
 class music_cog(commands.Cog):
@@ -86,7 +90,7 @@ class music_cog(commands.Cog):
                     self.musicQueue[id] = []
                     self.queueIndex[id] = 0
                     await self.vc[id].disconnect()
-                if not self.vc[id].is_connected():
+                if self.vc[id] == None or not self.vc[id].is_connected():
                     break
         # if the trigger is a user (not the bot) and the action was leaving a channel
         if member.id != self.bot.user.id and before.channel != None and after.channel != before.channel:
@@ -129,7 +133,7 @@ class music_cog(commands.Cog):
         LINK = song['link']
         THUMBNAIL = song['thumbnail']
         AUTHOR = ctx.author
-        AVATAR = AUTHOR.avatar_url
+        AVATAR = AUTHOR.avatar
 
         if type == 1:
             nowPlaying = discord.Embed(
@@ -313,6 +317,7 @@ class music_cog(commands.Cog):
                     await ctx.send(embed=message)
 
     # Search Command
+    # !DEPRICATED FOR NOW DUE TO DISCORD COMPONENTS INCOMPATABILITY
 
     @ commands.command(
         name="search",
