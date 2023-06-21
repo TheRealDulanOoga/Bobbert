@@ -8,7 +8,7 @@ import re
 import json
 import os
 import datetime
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 
 # TODO Make queue command list time left in audio
 # TODO Add playlist mechanics
@@ -218,7 +218,7 @@ class music_cog(commands.Cog):
         return {
             'link': 'https://www.youtube.com/watch?v=' + url,
             'thumbnail': 'https://i.ytimg.com/vi/' + url + '/hqdefault.jpg?sqp=-oaymwEcCOADEI4CSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLD5uL4xKN-IUfez6KIW_j5y70mlig',
-            'source': info['formats'][0]['url'],
+            'source': info['url'],
             'title': info['title']
         }
 
