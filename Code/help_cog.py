@@ -52,10 +52,10 @@ class help_cog(commands.Cog):
             if nickname == None:
                 nickname = botMember.name
             botNames[guild.id] = nickname
-        for channel in sendToChannels:
-            helloEmbed = self.helloEmbedGen(
-                botNames[channel.guild.id])
-            await channel.send(embed=helloEmbed)
+        # for channel in sendToChannels:
+        #     helloEmbed = self.helloEmbedGen(
+        #         botNames[channel.guild.id])
+        #     await channel.send(embed=helloEmbed)
 
     @ commands.command(
         name="help",
