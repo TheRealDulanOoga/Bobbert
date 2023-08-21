@@ -13,7 +13,7 @@ class help_cog(commands.Cog):
         self.embedOrange = 0xeab148
         self.embedDarkPink = 0x7d3243
 
-    def helloEmbedGen(self, name):
+    def infoEmbedGen(self, name):
         embed = discord.Embed(
             title="Hello There!",
             description=f"""
@@ -52,17 +52,13 @@ class help_cog(commands.Cog):
             if nickname == None:
                 nickname = botMember.name
             botNames[guild.id] = nickname
-        # for channel in sendToChannels:
-        #     helloEmbed = self.helloEmbedGen(
-        #         botNames[channel.guild.id])
-        #     await channel.send(embed=helloEmbed)
 
     @ commands.command(
         name="help",
         aliases=["h"],
         help="""
             (command_name)
-            Provides a description of all specified commands
+            Provides a description of all commands or a longer description of an inputted command
             Gives a description of a specified command (optional). If no command is specified, then gives a less detailed description of all commands.
             """
     )
@@ -97,7 +93,7 @@ class help_cog(commands.Cog):
             )
 
         else:
-            commandDescription = "**`!help (command)`** - Provides a description of all commands or a longer description of an inputted command\n\n"
+            commandDescription = ""
             for c in commands:
                 arguments = c.help.split("\n")[0]
                 shortHelp = c.help.split("\n")[1]
@@ -141,3 +137,15 @@ class help_cog(commands.Cog):
             await self.bot.close()
         else:
             await ctx.send("You do not have proper permissions to reboot me.")
+
+    @commands.command(
+        name='info',
+        aliases=[],
+        help="""
+            <>
+            Gives info about the bot
+            Gives info about the bot
+            """
+    )
+    async def info(self, ctx):
+        await ctx.send(embed=self.infoEmbedGen("Bobbert"))

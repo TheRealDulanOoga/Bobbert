@@ -1,5 +1,5 @@
 import discord
-#from discord_components import Select, SelectOption, Button
+# from discord_components import Select, SelectOption, Button
 from discord.ext import commands
 import asyncio
 from asyncio import run_coroutine_threadsafe
@@ -39,9 +39,14 @@ class music_cog(commands.Cog):
         self.queueIndex = {}
 
         self.YTDL_OPTIONS = {
-            'format': 'bestaudio',
+            'format': 'bestaudio/best',
             'nonplaylist': 'True',
-            'quiet': True
+            'quiet': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
         }
         self.FFMPEG_OPTIONS = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -217,7 +222,7 @@ class music_cog(commands.Cog):
                 return False
         return {
             'link': 'https://www.youtube.com/watch?v=' + url,
-            'thumbnail': 'https://i.ytimg.com/vi/' + url + '/hqdefault.jpg?sqp=-oaymwEcCOADEI4CSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLD5uL4xKN-IUfez6KIW_j5y70mlig',
+            'thumbnail': info['thumbnails'][-1]['url'],
             'source': info['url'],
             'title': info['title']
         }
@@ -319,15 +324,16 @@ class music_cog(commands.Cog):
     # Search Command
     # !DEPRICATED FOR NOW DUE TO DISCORD COMPONENTS INCOMPATABILITY
 
-    @ commands.command(
-        name="search",
-        aliases=["find", "sr"],
-        help="""
-            [url || search terms]
-            Provides a list of YouTube search results
-            Provides a list of the first ten YouTube search results for a url or specified search terms. You can then select one of the results to add to the current queue.
-            """
-    )
+    # @ commands.command(
+    #     name="search",
+    #     aliases=["find", "sr"],
+    #     help="""
+    #         [url || search terms]
+    #         Provides a list of YouTube search results
+    #         Provides a list of the first ten YouTube search results for a url or specified search terms. You can then select one of the results to add to the current queue.
+    #         """
+    # )
+    """
     async def search(self, ctx, *args):
         search = " ".join(args)
         songNames = []
@@ -431,7 +437,7 @@ class music_cog(commands.Cog):
             searchResults.description = ""
             await message.delete()
             await ctx.send(embed=searchResults)
-
+    """
     # Add Command
 
     @ commands.command(
@@ -625,7 +631,7 @@ class music_cog(commands.Cog):
         help="""
             <>
             Lists the next few songs in the queue.
-            Lists the song that is currently playing and the next few songs in the queue. Up to five songs can be listed depending on how many are in the queue. 
+            Lists the song that is currently playing and the next few songs in the queue. Up to five songs can be listed depending on how many are in the queue.
             """,
     )
     async def queue(self, ctx):
