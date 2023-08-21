@@ -247,6 +247,12 @@ class music_cog(commands.Cog):
             self.vc[id].play(discord.FFmpegPCMAudio(
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
+            coro = ctx.send("You have reached the end of the queue!")
+            fut = run_coroutine_threadsafe(coro, self.bot.loop)
+            try:
+                fut.result()
+            except:
+                pass
             print("Play_next error")
             self.queueIndex[id] += 1
             self.is_playing[id] = False
@@ -266,7 +272,7 @@ class music_cog(commands.Cog):
             self.vc[id].play(discord.FFmpegPCMAudio(
                 song['source'], **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
-            await ctx.send(f"There are no songs in the queue to be played.")
+            await ctx.send("There are no songs in the queue to be played.")
             self.queueIndex[id] += 1
             self.is_playing[id] = False
 
@@ -639,6 +645,10 @@ class music_cog(commands.Cog):
         returnValue = ""
         if self.musicQueue[id] == []:
             await ctx.send("There are no songs in the queue.")
+            return
+
+        if len(self.musicQueue[id]) <= self.queueIndex[id]:
+            await ctx.send("You have reached the end of the queue.")
             return
 
         for i in range(self.queueIndex[id], len(self.musicQueue[id])):
