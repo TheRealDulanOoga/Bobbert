@@ -309,7 +309,11 @@ class music_cog(commands.Cog):
             else:
                 return
         else:
-            song = self.extract_YT(self.search_YT(search)[0])
+            searchResults = self.search_YT(search)
+            for i in range(10):
+                song = self.extract_YT(searchResults[i])
+                if not ("shopify" in str(song['title']).lower()):
+                    break
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
             else:
