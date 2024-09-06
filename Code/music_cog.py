@@ -10,6 +10,8 @@ import os
 import datetime
 from yt_dlp import YoutubeDL
 
+help(YoutubeDL)
+
 # TODO Make queue command list time left in audio
 # TODO Add playlist mechanics
 # Made a search command
@@ -288,6 +290,8 @@ class music_cog(commands.Cog):
             """
     )
     async def play(self, ctx, *args):
+        for arg in args:
+            arg.replace("'", '')
         search = " ".join(args)
         id = int(ctx.guild.id)
         try:
@@ -318,6 +322,63 @@ class music_cog(commands.Cog):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
             else:
                 self.musicQueue[id].append([song, userChannel])
+
+                if self.is_paused[id]:
+                    await ctx.send("Audio resumed!")
+                    self.is_playing[id] = True
+                    self.is_paused[id] = False
+                    self.vc[id].resume()
+
+                if not self.is_playing[id]:
+                    await self.play_music(ctx)
+                else:
+                    message = self.generate_embed(ctx, song, 2)
+                    await ctx.send(embed=message)
+
+    # Playnext Command
+
+    @ commands.command(
+        name="playNext",
+        aliases=["pln"],
+        help="""
+            (url || search terms)
+            Inserts the audio of a specified YouTube video next in the queue
+            Takes either a url or search terms for a YouTube video and inserts the first result next in the queue. If no arguments are specified then the current audio is resumed.
+            """
+    )
+    async def play(self, ctx, *args):
+        for arg in args:
+            arg.replace("'", '')
+        search = " ".join(args)
+        id = int(ctx.guild.id)
+        try:
+            userChannel = ctx.author.voice.channel
+        except:
+            await ctx.send("You must be connected to a voice channel.")
+            return
+        if not args:
+            if len(self.musicQueue[id]) == 0:
+                await ctx.send("There are no songs in the queue to be played.")
+                return
+            elif not self.is_playing[id]:
+                if self.musicQueue[id] == None or self.vc[id] == None:
+                    await self.play_music(ctx)
+                else:
+                    self.is_paused[id] = False
+                    self.is_playing[id] = True
+                    self.vc[id].resume()
+            else:
+                return
+        else:
+            searchResults = self.search_YT(search)
+            for i in range(10):
+                song = self.extract_YT(searchResults[i])
+                if not ("shopify" in str(song['title']).lower()):
+                    break
+            if type(song) == type(True):
+                await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
+            else:
+                self.musicQueue[id].insert([song, userChannel], self.queueIndex + 1)
 
                 if self.is_paused[id]:
                     await ctx.send("Audio resumed!")
