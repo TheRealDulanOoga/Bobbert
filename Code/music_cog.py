@@ -10,8 +10,6 @@ import os
 import datetime
 from yt_dlp import YoutubeDL
 
-help(YoutubeDL)
-
 # TODO Make queue command list time left in audio
 # TODO Add playlist mechanics
 # Made a search command
@@ -538,38 +536,6 @@ class music_cog(commands.Cog):
             else:
                 self.musicQueue[ctx.guild.id].append([song, userChannel])
                 message = self.generate_embed(ctx, song, 2)
-                await ctx.send(embed=message)
-
-    # AddNext Command
-
-    @ commands.command(
-        name="addnext",
-        aliases=["an", "addn", "pln", "playnext"],
-        help="""
-            [url || search terms]
-            Inserts the first search result next in the queue
-            Inserts the first YouTube search result for a url or specified search terms next in the queue.
-            """
-    )
-    async def addNext(self, ctx, *args):
-        search = " ".join(args)
-
-        try:
-            userChannel = ctx.author.voice.channel
-        except:
-            await ctx.send("You must be connected to a voice channel.")
-            return
-        if not args:
-            await ctx.send("You need to specify a song to be added.")
-        else:
-            song = self.extract_YT(self.search_YT(search)[0])
-            if type(song) == type(True):
-                await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
-                return
-            else:
-                self.musicQueue[ctx.guild.id].insert(
-                    self.queueIndex + 1, [song, userChannel])
-                message = self.generate_embed(ctx, song, 4)
                 await ctx.send(embed=message)
 
     # Remove Command
