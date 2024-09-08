@@ -344,7 +344,7 @@ class music_cog(commands.Cog):
             Takes either a url or search terms for a YouTube video and inserts the first result next in the queue. If no arguments are specified then the current audio is resumed.
             """
     )
-    async def play(self, ctx, *args):
+    async def playNext(self, ctx, *args):
         for arg in args:
             arg.replace("'", '')
         search = " ".join(args)
@@ -376,7 +376,7 @@ class music_cog(commands.Cog):
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
             else:
-                self.musicQueue[id].insert([song, userChannel], self.queueIndex + 1)
+                self.musicQueue[id].insert(self.queueIndex[id] + 1, [song, userChannel])
 
                 if self.is_paused[id]:
                     await ctx.send("Audio resumed!")
@@ -387,7 +387,7 @@ class music_cog(commands.Cog):
                 if not self.is_playing[id]:
                     await self.play_music(ctx)
                 else:
-                    message = self.generate_embed(ctx, song, 2)
+                    message = self.generate_embed(ctx, song, 4)
                     await ctx.send(embed=message)
 
     # Search Command
@@ -579,7 +579,7 @@ class music_cog(commands.Cog):
             <>
             Pauses the current song being played
             Pauses the current song being played.
-            """,
+            """
     )
     async def pause(self, ctx):
         id = int(ctx.guild.id)
@@ -600,7 +600,7 @@ class music_cog(commands.Cog):
             <>
             Resumes a paused song
             Resumes a paused song
-            """,
+            """
     )
     async def resume(self, ctx):
         id = int(ctx.guild.id)
@@ -621,7 +621,7 @@ class music_cog(commands.Cog):
             <>
             Plays the previous song in the queue
             Plays the previous song in the queue. If there is no previous song then nothing happens.
-            """,
+            """
     )
     async def previous(self, ctx):
         id = int(ctx.guild.id)
@@ -645,7 +645,7 @@ class music_cog(commands.Cog):
             <>
             Skips to the next song in the queue.
             Skips to the next song in the queue. If there is no following song then nothing happens.
-            """,
+            """
     )
     async def skip(self, ctx):
         id = int(ctx.guild.id)
@@ -669,7 +669,7 @@ class music_cog(commands.Cog):
             <>
             Lists the next few songs in the queue.
             Lists the song that is currently playing and the next few songs in the queue. Up to five songs can be listed depending on how many are in the queue.
-            """,
+            """
     )
     async def queue(self, ctx):
         id = int(ctx.guild.id)
@@ -714,7 +714,7 @@ class music_cog(commands.Cog):
             <>
             Clears all of the songs from the queue
             Stops the current audio from playing and clears all of the songs from the queue.
-            """,
+            """
     )
     async def clear(self, ctx):
         id = int(ctx.guild.id)
@@ -736,7 +736,7 @@ class music_cog(commands.Cog):
             <>
             Connects the bot to the voice channel
             Connects the bot to the voice channel of whoever called the command. If you are not in a voice channel then nothing will happen.
-            """,
+            """
     )
     async def join(self, ctx):
         if ctx.author.voice:
@@ -755,7 +755,7 @@ class music_cog(commands.Cog):
             <>
             Removes the bot from the voice channel and clears the queue
             Removes the bot from the voice channel and clears all of the songs from the queue.
-            """,
+            """
     )
     async def leave(self, ctx):
         id = int(ctx.guild.id)
