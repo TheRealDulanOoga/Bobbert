@@ -186,14 +186,14 @@ class music_cog(commands.Cog):
     async def insert(self, ctx, *args):
         id = int(ctx.guild.id)
 
-        index = VC.queueIndex[id] + 2
+        index = VC.queueIndex[id] + 1
         try:
             index = int(args[0]) - 1
             args = args[1:]
         except: pass
 
         query = " ".join(args)
-        index = max(0, min(index, len(VC.queue[id]) - 1))
+        index = max(0, min(index, len(VC.queue[id])))
 
         try: userChannel = ctx.author.voice.channel
         except: return await ctx.send("You must be connected to a voice channel.")
