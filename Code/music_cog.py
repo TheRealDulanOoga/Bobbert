@@ -1,5 +1,4 @@
 from discord.ext import commands
-import discord
 import datetime
 import asyncio
 import os
@@ -20,6 +19,7 @@ class music_cog(commands.Cog):
     #setup
     @commands.Cog.listener()
     async def on_ready(self):
+        print("on_ready")
         for guild in VC.bot.guilds:
             id = int(guild.id)
 
@@ -27,8 +27,9 @@ class music_cog(commands.Cog):
             nickname = botMember.nick
             if nickname == None:
                 nickname = botMember.name
-            
-            VC.init(id, nickname)
+
+            if id not in VC.vc:
+                VC.init(id, nickname)
 
 
     #error handler
@@ -40,7 +41,7 @@ class music_cog(commands.Cog):
         await ctx.send(embed=embeds.error(error))
 
 
-    #auto-leave
+    # auto-leave
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         # if the trigger was the bot and the action was joining a channel
@@ -219,7 +220,6 @@ class music_cog(commands.Cog):
         if VC.queue[id] == []: return await ctx.send("There are no songs to be removed in the queue.")
 
         pos = -1
-        print(args)
         if args and int(args[0]):
             arg = int(args[0])
             if arg >= 1 and arg <= len(VC.queue[id]): 
@@ -322,6 +322,26 @@ class music_cog(commands.Cog):
         await VC.jump(ctx, index + 1)
 
 
+     # Jump Command
+    @ commands.command(
+        name="jump",
+        aliases=["jm"],
+        help="""
+            <>
+            Jumps to a specified song slot in the queue.
+            Jumps to a specified song slot in the queue.
+            """
+    )
+    async def jump(self, ctx, *args):
+        id = int(ctx.guild.id)
+
+        if args and int(args[0]) > 0: index = int(args[0]) - 1
+        else: return await ctx.send("You need to specify a proper index to use the jump command.")
+
+        await VC.jump(ctx, index)
+            
+
+
  # List Queue Command
     @ commands.command(
         name="queue",
@@ -344,7 +364,6 @@ class music_cog(commands.Cog):
 
         if not args: pass
         elif int(args[0]):
-            print('int')
             start = int(args[0]) - 1
             start = min(max(0, start), end)
             if len(args) > 1 and int(args[1]):

@@ -52,10 +52,18 @@ def extract_yt_info(query):
 
 
 async def join(id, channel):
-    if vc[id] is None or not vc[id].is_connected():
-        vc[id] = await channel.connect()
-    else:
-        await vc[id].move_to(channel)
+    existingClient = discord.utils.get(bot.voice_clients, guild=channel.guild)
+
+    if existingClient:
+        vc[id] = existingClient
+        if existingClient.channel != channel:
+            await existingClient.move_to(channel)
+        return
+    
+    if vc[id] is None: vc[id] = await channel.connect(reconnect=False, timeout=5)
+
+    print("Voice client:", vc[id])
+    print("Connected:", vc[id].is_connected())
 
 
 async def leave(id):
