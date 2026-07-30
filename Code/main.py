@@ -15,9 +15,6 @@ async def load():
     bot.remove_command('help')
     await bot.load_extension("help_cog")
     await bot.load_extension("music_cog")
-    # for filename in os.listdir("./Code"):
-    #     if filename.endswith(".py") and not filename.startswith("main"):
-    #         await bot.load_extension(filename[:-3])
 
 async def main():
     async with bot:

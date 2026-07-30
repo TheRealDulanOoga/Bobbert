@@ -128,7 +128,10 @@ class music_cog(commands.Cog):
             if len(VC.queue[id]) == 0: await ctx.send("There are no songs in the queue to be played.") # no queue
             elif VC.playing[id]: await ctx.send("Audio is already being played right now.")            # bot is already playing
             elif VC.vc[id] == None: await VC.start_playing(ctx)  # bot is NOT playing and is not connected to VC
-            else: await VC.resume(ctx)                           # bot is NOT playing and IS connected to VC
+            elif VC.queueIndex[id] >= len(VC.queue[id]):     # bot is past the end of the queue
+                VC.queueIndex[id] -= 1
+                await VC.start_playing(ctx)                                                
+            else: await VC.resume(ctx)                           # bot is NOT playing and IS connected to VC          
             return
         else: # song was specified
             for arg in args: arg.replace("'", '')
@@ -183,14 +186,14 @@ class music_cog(commands.Cog):
     async def insert(self, ctx, *args):
         id = int(ctx.guild.id)
 
-        index = 0
+        index = VC.queueIndex[id] + 2
         try:
-            index = int(args[0]) 
+            index = int(args[0]) - 1
             args = args[1:]
         except: pass
 
         query = " ".join(args)
-        index = max(VC.queueIndex[id] + 1, min(index, len(VC.queue[id]) - 1))
+        index = max(0, min(index, len(VC.queue[id]) - 1))
 
         try: userChannel = ctx.author.voice.channel
         except: return await ctx.send("You must be connected to a voice channel.")
@@ -202,6 +205,7 @@ class music_cog(commands.Cog):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword.")
                 return
             else:
+                if index <= VC.queueIndex[id]: VC.queueIndex[id] += 1
                 VC.queue[id].insert(index, [song, userChannel])
                 await ctx.send(embed=embeds.songInserted(ctx, song, index + 1))
 
@@ -222,7 +226,7 @@ class music_cog(commands.Cog):
         pos = -1
         if args and int(args[0]):
             arg = int(args[0])
-            if arg >= 1 and arg <= len(VC.queue[id]): 
+            if arg > 0 and arg <= len(VC.queue[id]): 
                 pos = arg - 1
             else: return await ctx.send("Your insertion index between 1 and the queue length")
 
@@ -233,7 +237,6 @@ class music_cog(commands.Cog):
         song = VC.queue[id][pos][0]
         await ctx.send(embed=embeds.songRemoved(ctx, song, pos + 1))
         
-        # VC.queue[id] = VC.queue[id][:pos] + VC.queue[id][pos+1:]
         del VC.queue[id][pos]
 
         if VC.queue[id] == []:
@@ -244,12 +247,19 @@ class music_cog(commands.Cog):
             VC.queueIndex[id] = 0
             return
 
-        VC.queueIndex[id] = min(index, qLen - 2)
-        if index > pos:
+        if index > pos or index >= qLen - 1:
             VC.queueIndex[id] -= 1
-        if index == pos or index > qLen - 2:
+    
+        if index == pos:
             VC.vc[id].pause()
             await VC.start_playing(ctx)
+
+        # VC.queueIndex[id] = min(index, qLen - 1)
+        # if index > pos:
+        #     VC.queueIndex[id] -= 1
+        # if index == pos or index > qLen - 1:
+        #     VC.vc[id].pause()
+        #     await VC.start_playing(ctx)
         
 
     # Pause Command
@@ -333,8 +343,6 @@ class music_cog(commands.Cog):
             """
     )
     async def jump(self, ctx, *args):
-        id = int(ctx.guild.id)
-
         if args and int(args[0]) > 0: index = int(args[0]) - 1
         else: return await ctx.send("You need to specify a proper index to use the jump command.")
 
@@ -380,42 +388,7 @@ class music_cog(commands.Cog):
             elif indexDiff > 0: message += f"+{indexDiff}"
             else: message += f"{indexDiff}"
 
-            # print(message)
-            # print(song[0]['title'])
             await ctx.send(embed=embeds.queue(ctx, song[0], message, indexDiff))
-
-        # id = int(ctx.guild.id)
-        # returnValue = ""
-        # if VC.queue[id] == []:
-        #     await ctx.send("There are no songs in the queue.")
-        #     return
-
-        # if len(VC.queue[id]) <= VC.queueIndex[id]:
-        #     await ctx.send("You have reached the end of the queue.")
-        #     return
-
-        # for i in range(VC.queueIndex[id], len(VC.queue[id])):
-        #     upNextSongs = len(
-        #         VC.queue[id]) - VC.queueIndex[id]
-        #     if i > 5 + upNextSongs:
-        #         break
-        #     returnIndex = i - VC.queueIndex[id]
-        #     if returnIndex == 0:
-        #         returnIndex = "Playing"
-        #     elif returnIndex == 1:
-        #         returnIndex = "Next"
-        #     returnValue += f"{returnIndex} - [{VC.queue[id][i][0]['title']}]({VC.queue[id][i][0]['link']})\n"
-
-        #     if returnValue == "":
-        #         await ctx.send("There are no songs in the queue.")
-        #         return
-
-        # queue = discord.Embed(
-        #     title="Current Queue",
-        #     description=returnValue,
-        #     colour=embeds.GREEN
-        # )
-        # await ctx.send(embed=queue)
 
 
     # Clear Queue Command

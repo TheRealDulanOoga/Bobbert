@@ -36,7 +36,7 @@ def init(id, nickname):
 
 
 def extract_yt_info(query):
-    print(f"Extracting information from YouTube for '{query}'")
+    print(f"\nExtracting information from YouTube for '{query}'")
     with YoutubeDL(YTDL_OPTIONS) as ydl: 
         info = ydl.extract_info(query, download=False)
     print("Extraction successful!\n")
@@ -117,10 +117,10 @@ async def start_playing(ctx):
 async def continue_playing(ctx):
     id = int(ctx.guild.id)
     queueIndex[id] += 1
-    print(queue[id])
+    print("continue playing")
 
     if queueIndex[id] < len(queue[id]):
-        print("continue playing")
+        print("Now Playing: " + queue[id][queueIndex[id]][0]['title'])
         QPOS = queue[id][queueIndex[id]]
         song = QPOS[0]
         channel = QPOS[1]
@@ -153,68 +153,3 @@ async def jump(ctx, position):
 
     vc[id].pause()
     await start_playing(ctx)
-
-# async def startPlaying(self, ctx):
-#     id = int(ctx.guild.id)
-
-#     if queueIndex[id] >= len(queue[id]):
-#         await ctx.send("There are no songs in the queue to be played.")
-#         playing[id] = False
-#         return
-
-#     QPOS = queue[id][queueIndex[id]]
-#     song = QPOS[0]
-#     channel = QPOS[1]
-
-#     await join(ctx, channel)
-#     playing[id] = True
-#     paused[id] = False
-
-#     await ctx.send(embed=embeds.nowPlaying(ctx, song))
-
-#     ffmpeg_audio = discord.FFmpegPCMAudio(
-#         song['stream_url'],  # <- extracted by yt-dlp
-#         pipe=False,
-#         **FFMPEG_OPTIONS
-#     )
-
-#     def after_playing(error):
-#         if error:
-#             print("FFmpeg error:", error)
-#         loop = asyncio.get_event_loop()
-#         loop.create_task(continuePlaying(self, ctx))
-
-#     vc[id].play(ffmpeg_audio, after=lambda e: continuePlaying(self, ctx))
-
-# async def continuePlaying(self, ctx):
-#     id = int(ctx.guild.id)
-
-#     if not playing[id]:
-#         return
-
-#     queueIndex[id] += 1
-
-#     if queueIndex[id] < len(queue[id]):
-#         QPOS = queue[id][queueIndex[id]]
-#         song = QPOS[0]
-#         channel = QPOS[1]
-
-#         await join(ctx, channel)
-#         await ctx.send(embed=embeds.nowPlaying(ctx, song))
-
-#         ffmpeg_audio = discord.FFmpegPCMAudio(
-#             song['stream_url'],  # <- extracted by yt-dlp
-#             pipe=False,
-#             **FFMPEG_OPTIONS
-#         )
-
-#         def after_playing(error):
-#             if error:
-#                 print("FFmpeg error:", error)
-#             loop = asyncio.get_event_loop()
-#             loop.create_task(continuePlaying(self, ctx))
-
-#         vc[id].play(ffmpeg_audio, after=lambda e: continuePlaying(self, ctx))
-#     else:
-#         playing[id] = False
-#         await ctx.send("Reached the end of the queue.")
